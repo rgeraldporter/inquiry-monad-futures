@@ -1,6 +1,6 @@
 {
   "name": "inquiry-monad-futures",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Inquiry monad support for Futures",
   "main": "./built/index.js",
   "scripts": {
@@ -11,7 +11,7 @@
   "license": "MIT",
   "dependencies": {
     "fluture": "8.0.2",
-    "inquiry-monad": "0.15.2",
+    "inquiry-monad": "0.16.0",
     "simple-maybe": "0.3.5"
   },
   "devDependencies": {

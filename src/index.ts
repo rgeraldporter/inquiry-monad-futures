@@ -154,7 +154,8 @@ const exportInquiryF = {
                   pass: Pass([]),
                   iou: IOU([]),
                   informant: (_: any) => _
-              })
+              }),
+    of: (x: Inquiry) => InquiryF(x)
 };
 
 export { exportInquiryF as InquiryF };
