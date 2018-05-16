@@ -137,6 +137,7 @@ const exportInquiryF = {
             pass: inquiry_monad_1.Pass([]),
             iou: inquiry_monad_1.IOU([]),
             informant: (_) => _
-        })
+        }),
+    of: (x) => InquiryF(x)
 };
 exports.InquiryF = exportInquiryF;
