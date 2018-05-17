@@ -1,17 +1,19 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 const simple_maybe_1 = require("simple-maybe");
 const fluture_1 = require("fluture");
 const inquiry_monad_1 = require("inquiry-monad");
 const buildInqF = (x) => (vals) => vals.reduce((acc, cur) => cur.answer(x, 'reduced', InquiryF), x);
+const InquiryFSubject = (x) => 'isInquiry' in x
+    ? x
+    : InquiryF({
+        subject: simple_maybe_1.Maybe.of(x),
+        fail: inquiry_monad_1.Fail([]),
+        pass: inquiry_monad_1.Pass([]),
+        iou: inquiry_monad_1.IOU([]),
+        informant: (_) => _
+    });
+const InquiryFOf = (x) => InquiryF(x);
 const InquiryF = (x) => ({
     // Inquire: core method
     inquire: (f) => {
@@ -57,7 +59,7 @@ const InquiryF = (x) => ({
         informant: x.informant
     }),
     // Standard monad methods - note that while these work, remember that `x` is a typed Object
-    map: (f) => InquiryF.subject(f(x)),
+    map: (f) => InquiryFSubject(f(x)),
     ap: (y) => y.map(x),
     chain: (f) => f(x),
     join: () => x,
@@ -76,7 +78,7 @@ const InquiryF = (x) => ({
             informant: i.informant
         });
     },
-    // Unwrapping methods: all return Promises, all complete outstanding IOUs
+    // Unwrapping methods: all return Futures, all complete outstanding IOUs
     // Unwraps the Inquiry after ensuring all IOUs are completed
     conclude: (f, g) => fluture_1.Future.parallel(Infinity, x.iou.join())
         .map(buildInqF(x))
@@ -89,55 +91,34 @@ const InquiryF = (x) => ({
         informant: y.informant
     })),
     // If no fails, handoff aggregated passes to supplied function; if fails, return existing InquiryF
-    cleared: (f) => __awaiter(this, void 0, void 0, function* () {
-        return Promise.all(x.iou.join())
-            .then(buildInqF(x))
-            .then(i => (i.isInquiry ? i.join() : i))
-            .then(y => (y.fail.isEmpty() ? f(y.pass) : InquiryF(y)))
-            .catch(err => console.error('err', err));
-    }),
+    cleared: (f) => fluture_1.Future.parallel(Infinity, x.iou.join())
+        .map(buildInqF(x))
+        .map((i) => ('isInquiry' in i ? i.join() : i))
+        .fork(console.error, (y) => (y.fail.isEmpty() ? f(y.pass) : InquiryF(y))),
     // If fails, handoff aggregated fails to supplied function; if no fails, return existing InquiryF
-    faulted: (f) => __awaiter(this, void 0, void 0, function* () {
-        return fluture_1.Future.parallel(Infinity, x.iou.join())
-            .map(buildInqF(x))
-            .map((i) => (i.isInquiry ? i.join() : i))
-            .fork(console.error, (y) => (y.fail.isEmpty() ? InquiryF(y) : f(y.fail)));
-    }),
-    // Take left function and hands off fails if any, otherwise takes left function and hands off passes to that function
-    fork: (f, g) => __awaiter(this, void 0, void 0, function* () {
-        return Promise.all(x.iou.join())
-            .then(buildInqF(x))
-            .then(i => (i.isInquiry ? i.join() : i))
-            .then(y => (y.fail.join().length ? f(y.fail) : g(y.pass)));
-    }),
-    // return a Promise containing a merged fail/pass resultset array
-    zip: (f) => __awaiter(this, void 0, void 0, function* () {
-        return Promise.all(x.iou.join())
-            .then(buildInqF(x))
-            .then(i => (i.isInquiry ? i.join() : i))
-            .then(y => f(y.fail.join().concat(y.pass.join())));
-    }),
+    faulted: (f) => fluture_1.Future.parallel(Infinity, x.iou.join())
+        .map(buildInqF(x))
+        .map((i) => ('isInquiry' in i ? i.join() : i))
+        .fork(console.error, (y) => (y.fail.isEmpty() ? InquiryF(y) : f(y.fail))),
+    // Take left function and hands off fails if any, otherwise takes right function and hands off passes to that function
+    fork: (f, g) => fluture_1.Future.parallel(Infinity, x.iou.join())
+        .map(buildInqF(x))
+        .map((i) => ('isInquiry' in i ? i.join() : i))
+        .chain((y) => (y.fail.join().length ? f(y.fail) : g(y.pass))),
+    // return a Future containing a merged fail/pass resultset array
+    zip: (f) => fluture_1.Future.parallel(Infinity, x.iou.join())
+        .map(buildInqF(x))
+        .map((i) => ('isInquiry' in i ? i.join() : i))
+        .chain((y) => f(y.fail.join().concat(y.pass.join()))),
     // await all IOUs to resolve, then return a new Inquiry
-    // @todo: awaitP, awaitF that return an InquiryP or InquiryF
-    await: () => __awaiter(this, void 0, void 0, function* () {
-        return Promise.all(x.iou.join())
-            .then(buildInqF(x))
-            .then(i => (i.isInquiry ? i.join() : i))
-            .then(y => Inquiry(y));
-    }),
+    await: () => fluture_1.Future.parallel(Infinity, x.iou.join())
+        .map(buildInqF(x))
+        .map((i) => ('isInquiry' in i ? i.join() : i))
+        .chain((y) => InquiryFOf(y)),
     isInquiry: true
-    //@todo determine if we could zip "in order of tests"
 });
 const exportInquiryF = {
-    subject: (x) => x.isInquiry
-        ? x
-        : InquiryF({
-            subject: simple_maybe_1.Maybe.of(x),
-            fail: inquiry_monad_1.Fail([]),
-            pass: inquiry_monad_1.Pass([]),
-            iou: inquiry_monad_1.IOU([]),
-            informant: (_) => _
-        }),
-    of: (x) => InquiryF(x)
+    subject: InquiryFSubject,
+    of: InquiryFOf
 };
 exports.InquiryF = exportInquiryF;

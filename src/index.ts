@@ -2,8 +2,21 @@ import { Maybe } from 'simple-maybe';
 import { Future } from 'fluture';
 import { Pass, Fail, IOU } from 'inquiry-monad';
 
-const buildInqF = (x: any) => (vals: Array<any>) =>
+const buildInqF = <T>(x: T) => (vals: Array<any>) =>
     vals.reduce((acc, cur) => cur.answer(x, 'reduced', InquiryF), x);
+
+const InquiryFSubject = <T>(x: T | InquiryMonad) =>
+    'isInquiry' in (x as T)
+        ? x
+        : InquiryF({
+              subject: Maybe.of(x),
+              fail: Fail([]),
+              pass: Pass([]),
+              iou: IOU([]),
+              informant: <T>(_: T) => _
+          });
+
+const InquiryFOf = (x: Inquiry) => InquiryF(x);
 
 const InquiryF = (x: Inquiry): InquiryMonad => ({
     // Inquire: core method
@@ -62,7 +75,7 @@ const InquiryF = (x: Inquiry): InquiryMonad => ({
         }),
 
     // Standard monad methods - note that while these work, remember that `x` is a typed Object
-    map: (f: Function): Inquiry => (InquiryF as any).subject(f(x)), // cast required for now
+    map: (f: Function): Inquiry => InquiryFSubject(f(x)), // cast required for now
     ap: (y: Monad) => y.map(x),
     chain: (f: Function) => f(x),
     join: (): Inquiry => x,
@@ -85,14 +98,14 @@ const InquiryF = (x: Inquiry): InquiryMonad => ({
         });
     },
 
-    // Unwrapping methods: all return Promises, all complete outstanding IOUs
+    // Unwrapping methods: all return Futures, all complete outstanding IOUs
 
     // Unwraps the Inquiry after ensuring all IOUs are completed
     conclude: (f: Function, g: Function): Future<any, any> =>
         Future.parallel(Infinity, x.iou.join())
             .map(buildInqF(x))
             .map((i: any) => (i.isInquiry ? i.join() : i))
-            .fork(console.error, (y: any) => ({
+            .fork(console.error, (y: Inquiry) => ({
                 subject: y.subject,
                 iou: y.iou,
                 fail: f(y.fail),
@@ -101,61 +114,52 @@ const InquiryF = (x: Inquiry): InquiryMonad => ({
             })),
 
     // If no fails, handoff aggregated passes to supplied function; if fails, return existing InquiryF
-    cleared: async (f: Function): Promise<InquiryMonad | Array<any>> =>
-        Promise.all(x.iou.join())
-            .then(buildInqF(x))
-            .then(i => (i.isInquiry ? i.join() : i))
-            .then(y => (y.fail.isEmpty() ? f(y.pass) : InquiryF(y)))
-            .catch(err => console.error('err', err)),
-
-    // If fails, handoff aggregated fails to supplied function; if no fails, return existing InquiryF
-    faulted: async (f: Function): Promise<InquiryMonad | Array<any>> =>
+    cleared: (f: Function): Future<any, any> =>
         Future.parallel(Infinity, x.iou.join())
             .map(buildInqF(x))
-            .map((i: any) => (i.isInquiry ? i.join() : i))
+            .map(<T>(i: T | InquiryMonad) => ('isInquiry' in (i as T) ? (i as InquiryMonad).join() : i))
             .fork(
                 console.error,
-                (y: any) => (y.fail.isEmpty() ? InquiryF(y) : f(y.fail))
+                (y: Inquiry) => (y.fail.isEmpty() ? f(y.pass) : InquiryF(y))
             ),
 
-    // Take left function and hands off fails if any, otherwise takes left function and hands off passes to that function
-    fork: async (f: Function, g: Function): Promise<Array<any>> =>
-        Promise.all(x.iou.join())
-            .then(buildInqF(x))
-            .then(i => (i.isInquiry ? i.join() : i))
-            .then(y => (y.fail.join().length ? f(y.fail) : g(y.pass))),
+    // If fails, handoff aggregated fails to supplied function; if no fails, return existing InquiryF
+    faulted: (f: Function): Future<any, any> =>
+        Future.parallel(Infinity, x.iou.join())
+            .map(buildInqF(x))
+            .map(<T>(i: T | InquiryMonad) => ('isInquiry' in (i as T) ? (i as InquiryMonad).join() : i))
+            .fork(
+                console.error,
+                (y: Inquiry) => (y.fail.isEmpty() ? InquiryF(y) : f(y.fail))
+            ),
 
-    // return a Promise containing a merged fail/pass resultset array
-    zip: async (f: Function): Promise<Array<any>> =>
-        Promise.all(x.iou.join())
-            .then(buildInqF(x))
-            .then(i => (i.isInquiry ? i.join() : i))
-            .then(y => f(y.fail.join().concat(y.pass.join()))),
+    // Take left function and hands off fails if any, otherwise takes right function and hands off passes to that function
+    fork: (f: Function, g: Function): Future<any, any> =>
+        Future.parallel(Infinity, x.iou.join())
+            .map(buildInqF(x))
+            .map(<T>(i: T | InquiryMonad) => ('isInquiry' in (i as T) ? (i as InquiryMonad).join() : i))
+            .chain((y: Inquiry) => (y.fail.join().length ? f(y.fail) : g(y.pass))),
+
+    // return a Future containing a merged fail/pass resultset array
+    zip: (f: Function): Future<any, any> =>
+        Future.parallel(Infinity, x.iou.join())
+            .map(buildInqF(x))
+            .map(<T>(i: T | InquiryMonad) => ('isInquiry' in (i as T) ? (i as InquiryMonad).join() : i))
+            .chain((y: Inquiry) => f(y.fail.join().concat(y.pass.join()))),
 
     // await all IOUs to resolve, then return a new Inquiry
-    // @todo: awaitP, awaitF that return an InquiryP or InquiryF
-    await: async (): Promise<InquiryMonad> =>
-        Promise.all(x.iou.join())
-            .then(buildInqF(x))
-            .then(i => (i.isInquiry ? i.join() : i))
-            .then(y => Inquiry(y)),
+    await: (): Future<any, any> =>
+        Future.parallel(Infinity, x.iou.join())
+            .map(buildInqF(x))
+            .map(<T>(i: T | InquiryMonad) => ('isInquiry' in (i as T) ? (i as InquiryMonad).join() : i))
+            .chain((y: Inquiry) => InquiryFOf(y)),
 
     isInquiry: true
-    //@todo determine if we could zip "in order of tests"
 });
 
 const exportInquiryF = {
-    subject: (x: any) =>
-        x.isInquiry
-            ? x
-            : InquiryF({
-                  subject: Maybe.of(x),
-                  fail: Fail([]),
-                  pass: Pass([]),
-                  iou: IOU([]),
-                  informant: (_: any) => _
-              }),
-    of: (x: Inquiry) => InquiryF(x)
+    subject: InquiryFSubject,
+    of: InquiryFOf
 };
 
 export { exportInquiryF as InquiryF };
