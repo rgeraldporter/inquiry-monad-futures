@@ -1,5 +1,5 @@
 #Inquiry Monad Futures
-### v0.4.0
+### v0.4.1
 
 Inquiry chains together functions that test a given value ("subject") and return with a full set of all passes, failures, and the original untouched value. This version is to be used with a Futures library such as [Fluture](https://github.com/fluture-js/Fluture).
 
