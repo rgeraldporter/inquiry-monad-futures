@@ -162,4 +162,4 @@ const exportInquiryF = {
     of: InquiryFOf
 };
 
-export { exportInquiryF as InquiryF };
+export { exportInquiryF as InquiryF, Pass, Fail, IOU, Future };

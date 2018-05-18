@@ -1,18 +1,22 @@
 {
   "name": "inquiry-monad-futures",
-  "version": "0.3.0",
-  "description": "Inquiry monad support for Futures",
+  "version": "0.4.0",
+  "description": "Inquiry Monad with support for Futures.",
   "main": "./built/index.js",
   "scripts": {
     "test": "find ./built -name '*.spec.js' | NODE_ENV=test xargs node ./node_modules/jasmine/bin/jasmine.js",
     "build": "tsc",
     "postinstall": "npm run build"
   },
+  "repository": {
+    "url": "git@github.com:rgeraldporter/inquiry-monad-futures.git",
+    "type": "git"
+  },
   "author": "Robert Gerald Porter <rob@weeverapps.com>",
   "license": "MIT",
   "dependencies": {
     "fluture": "8.0.2",
-    "inquiry-monad": "0.16.2",
+    "inquiry-monad": "0.16.7",
     "simple-maybe": "0.3.5",
     "typescript": "2.8.3"
   },

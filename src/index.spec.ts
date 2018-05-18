@@ -1,5 +1,5 @@
-import { InquiryF } from './index';
-import { Pass, Fail, IOU, InquiryP } from 'inquiry-monad';
+import { InquiryF, Pass, Fail, IOU } from './index';
+import { InquiryP } from 'inquiry-monad';
 import * as R from 'ramda';
 import 'jasmine';
 import { Maybe } from 'simple-maybe';
