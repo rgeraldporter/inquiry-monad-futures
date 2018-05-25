@@ -1,31 +1,35 @@
 {
-  "name": "inquiry-monad-futures",
-  "version": "0.4.1",
-  "description": "Inquiry Monad with support for Futures.",
-  "main": "./built/index.js",
-  "scripts": {
-    "test": "jest",
-    "build": "tsc",
-    "postinstall": "npm run build"
-  },
-  "repository": {
-    "url": "git@github.com:rgeraldporter/inquiry-monad-futures.git",
-    "type": "git"
-  },
-  "author": "Robert Gerald Porter <rob@weeverapps.com>",
-  "license": "MIT",
-  "dependencies": {
-    "fluture": "8.0.2",
-    "inquiry-monad": "0.16.7",
-    "simple-maybe": "0.3.5",
-    "typescript": "2.8.3"
-  },
-  "devDependencies": {
-    "@types/jest": "22.2.3",
-    "@types/ramda": "0.25.24",
-    "jest": "22.4.4",
-    "ramda": "0.25.0",
-    "ts-jest": "22.4.6",
-    "ts-node": "6.0.0"
-  }
+    "name": "inquiry-monad-futures",
+    "version": "0.4.2",
+    "description": "Inquiry Monad with support for Futures.",
+    "main": "./built/index.js",
+    "scripts": {
+        "test": "jest",
+        "build": "tsc",
+        "postinstall": "npm run build",
+        "bundle": "webpack --config webpack.config.js"
+    },
+    "repository": {
+        "url": "git@github.com:rgeraldporter/inquiry-monad-futures.git",
+        "type": "git"
+    },
+    "author": "Robert Gerald Porter <rob@weeverapps.com>",
+    "license": "MIT",
+    "dependencies": {
+        "fluture": "8.0.2",
+        "inquiry-monad": "0.16.15",
+        "simple-maybe": "0.3.5",
+        "typescript": "2.8.3"
+    },
+    "devDependencies": {
+        "@types/jest": "22.2.3",
+        "@types/ramda": "0.25.24",
+        "awesome-typescript-loader": "5.0.0",
+        "jest": "22.4.4",
+        "ramda": "0.25.0",
+        "ts-jest": "22.4.6",
+        "ts-node": "6.0.0",
+        "webpack": "4.8.3",
+        "webpack-cli": "2.1.4"
+    }
 }

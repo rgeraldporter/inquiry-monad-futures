@@ -15,7 +15,10 @@ const nameSpelledRight = (a: any) =>
 const hasRecords = () => Pass([{ records: [1, 2, 3] }]);
 const mathGrade = () => Fail(['Failed at math']);
 
+// @ts-ignore
 const resolveAfter1SecondF = (x: any) => Future.after(1000, Pass('passed'));
+
+// @ts-ignore
 const resolveAfter2SecondsF = (x: any) => Future.after(2000, Fail('delayed fail'));
 
 describe('The module', () => {

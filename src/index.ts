@@ -102,6 +102,8 @@ const InquiryF = (x: Inquiry): InquiryMonad => ({
 
     // Unwraps the Inquiry after ensuring all IOUs are completed
     conclude: (f: Function, g: Function): Future<any, any> =>
+
+        // @ts-ignore
         Future.parallel(Infinity, x.iou.join())
             .map(buildInqF(x))
             .map((i: any) => (i.isInquiry ? i.join() : i))
@@ -115,6 +117,8 @@ const InquiryF = (x: Inquiry): InquiryMonad => ({
 
     // If no fails, handoff aggregated passes to supplied function; if fails, return existing InquiryF
     cleared: (f: Function): Future<any, any> =>
+
+        // @ts-ignore
         Future.parallel(Infinity, x.iou.join())
             .map(buildInqF(x))
             .map(<T>(i: T | InquiryMonad) => ('isInquiry' in (i as T) ? (i as InquiryMonad).join() : i))
@@ -125,6 +129,8 @@ const InquiryF = (x: Inquiry): InquiryMonad => ({
 
     // If fails, handoff aggregated fails to supplied function; if no fails, return existing InquiryF
     faulted: (f: Function): Future<any, any> =>
+
+        // @ts-ignore
         Future.parallel(Infinity, x.iou.join())
             .map(buildInqF(x))
             .map(<T>(i: T | InquiryMonad) => ('isInquiry' in (i as T) ? (i as InquiryMonad).join() : i))
@@ -135,6 +141,8 @@ const InquiryF = (x: Inquiry): InquiryMonad => ({
 
     // Take left function and hands off fails if any, otherwise takes right function and hands off passes to that function
     fork: (f: Function, g: Function): Future<any, any> =>
+
+        // @ts-ignore
         Future.parallel(Infinity, x.iou.join())
             .map(buildInqF(x))
             .map(<T>(i: T | InquiryMonad) => ('isInquiry' in (i as T) ? (i as InquiryMonad).join() : i))
@@ -142,6 +150,8 @@ const InquiryF = (x: Inquiry): InquiryMonad => ({
 
     // return a Future containing a merged fail/pass resultset array
     zip: (f: Function): Future<any, any> =>
+
+        // @ts-ignore
         Future.parallel(Infinity, x.iou.join())
             .map(buildInqF(x))
             .map(<T>(i: T | InquiryMonad) => ('isInquiry' in (i as T) ? (i as InquiryMonad).join() : i))
@@ -149,6 +159,8 @@ const InquiryF = (x: Inquiry): InquiryMonad => ({
 
     // await all IOUs to resolve, then return a new Inquiry
     await: (): Future<any, any> =>
+
+        // @ts-ignore
         Future.parallel(Infinity, x.iou.join())
             .map(buildInqF(x))
             .map(<T>(i: T | InquiryMonad) => ('isInquiry' in (i as T) ? (i as InquiryMonad).join() : i))
