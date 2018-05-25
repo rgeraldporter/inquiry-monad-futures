@@ -6,7 +6,7 @@ const buildInqF = <T>(x: T) => (vals: Array<any>) =>
     vals.reduce((acc, cur) => cur.answer(x, 'reduced', InquiryF), x);
 
 const InquiryFSubject = <T>(x: T | InquiryMonad) =>
-    'isInquiry' in (x as T)
+    (x as any).isInquiry
         ? x
         : InquiryF({
               subject: Maybe.of(x),
