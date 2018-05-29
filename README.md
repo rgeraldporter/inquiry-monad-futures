@@ -1,45 +1,13 @@
 #Inquiry Monad Futures
-### v0.4.3
+### v0.4.4
 
-Inquiry chains together functions that test a given value ("subject") and return with a full set of all passes, failures, and the original untouched value. This version is to be used with a Futures library such as [Fluture](https://github.com/fluture-js/Fluture).
+Inquiry creates a process flow that allows one to chain multiple functions together to test a value ("subject"), granting observability over all results and returning a full report containing successes, failures, and the original test subject without mutation.
 
-For a Promise-based or syncronous version, see [`inquiry-monad`](https://github.com/rgeraldporter/inquiry-monad).
+Inquiry's API is comparible to Promises, and is designed to have an expressive, friendly API. It utilizes the concepts of functional programming, though experience with functional programming is not meant to be a requirement for ease of use. To those experienced with functional programming, Inquiry can be compared with an `Either` or a `Validation` library.
 
-## Usage
+## Documentation
 
-Please see the documentation at [https://github.com/rgeraldporter/inquiry-monad] for examples of how Inquiry works.
-
-`inquiry-monad-futures` has the same API as `inquiry-monad`, but uses `InquiryF` instead as the name.
-
-## Example of InquiryF
-
-```js
-const { InquiryF, Pass, Fail } = require('inquiry-monad-futures');
-
-const subjectData = {
-    a: 1,
-    b: false
-};
-
-const hasA = x => (x.a ? Pass('has a') : Fail('does not have a'));
-const validateB = x =>
-    x.b && typeof x.b === 'boolean' ? Pass('b is valid') : Fail('b is invalid');
-const hasNoC = x => (x.c ? Fail('has a c value') : Pass('has no c value'));
-
-/* With Futures */
-const checkDb = x =>
-    Future.after(1000, Pass('pretend I looked something up in a db'));
-
-InquiryF.subject(subjectDataWithFailure)
-    .inquire(checkDb)
-    .inquire(hasA)
-    .inquire(validateB)
-    .inquire(hasNoC)
-    .conclude(x => x, y => y);
-// .conclude or another "unwrap" fn is necessary to complete "IOUs" to give a clean exit (resolve all unresolved Futures)
-
-// >> Promise.resolve(result: {subject: {a:1, b:'string', c:true}, pass: Pass(['has a', 'pretend I looked something up in a db']), fail: Fail(['b is invalid', 'has c value']), iou: IOU()})
-```
+Please see [`inquiry-monad`](https://github.com/rgeraldporter/inquiry-monad) for the main documentation. This module just adds the ability to use `InquiryF`, and contains no special APIs. It is equivalent to the API of `InquiryP`.
 
 ## MIT License
 
