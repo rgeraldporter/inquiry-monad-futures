@@ -133,6 +133,27 @@ describe('The module', () => {
             });
     });
 
+    it('should be able to make many checks, including async ones, and run a faulted unwrap after an await', (done) => {
+        return (InquiryF as any)
+            .subject({ name: 'test', age: 10, description: 'blah' })
+            .inquire(oldEnough)
+            .inquire(findHeight)
+            .inquire(resolveAfter2SecondsF)
+            .inquire(nameSpelledRight)
+            .inquire(hasRecords)
+            .inquire(mathGrade)
+            .promise()
+            .then((inq: InquiryMonad) => {
+                inq.faulted((x: FailMonad) => {
+                    expect(x.inspect()).toBe(
+                        "Fail(not old enough,Name wasn't spelled correctly,Failed at math,delayed fail)"
+                    );
+                    return x;
+                });
+                done();
+            });
+    });
+
     // due to old prototype method problem
     it('should not have prototype pollution', () => {
         expect(InquiryP.subject === InquiryF.subject).toBe(false);

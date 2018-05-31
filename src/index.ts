@@ -3,7 +3,7 @@ import { Future } from 'fluture';
 import { Pass, Fail, IOU } from 'inquiry-monad';
 
 const buildInqF = <T>(x: T) => (vals: Array<any>) =>
-    vals.reduce((acc, cur) => cur.answer(x, 'reduced', InquiryF), x);
+    vals.reduce((acc, cur) => cur.answer(x, '(async fn)', InquiryF), x);
 
 const InquiryFSubject = <T>(x: T | InquiryMonad) =>
     (x as any).isInquiry
@@ -16,7 +16,19 @@ const InquiryFSubject = <T>(x: T | InquiryMonad) =>
               informant: <T>(_: T) => _
           });
 
-const InquiryFOf = (x: Inquiry) => InquiryF(x);
+const warnTypeErrorF = <T>(x: T) => {
+    console.warn('InquiryF.of requires properties: subject, fail, pass, iou, informant. Converting to InquiryF.subject().');
+    return InquiryFSubject(x);
+}
+
+const InquiryFOf = (x: Inquiry) =>
+    'subject' in x
+        && 'fail' in x
+        && 'pass' in x
+        && 'iou' in x
+        && 'informant' in x
+            ? InquiryF(x)
+            : warnTypeErrorF(x);
 
 const InquiryF = (x: Inquiry): InquiryMonad => ({
     // Inquire: core method
@@ -157,14 +169,12 @@ const InquiryF = (x: Inquiry): InquiryMonad => ({
             .map(<T>(i: T | InquiryMonad) => ('isInquiry' in (i as T) ? (i as InquiryMonad).join() : i))
             .chain((y: Inquiry) => f(y.fail.join().concat(y.pass.join()))),
 
-    // await all IOUs to resolve, then return a new Inquiry
-    await: (): Future<any, any> =>
-
+    // resolves all IOUs, returns a Promise
+    promise: (): Future<any, any> =>
         // @ts-ignore
         Future.parallel(Infinity, x.iou.join())
             .map(buildInqF(x))
-            .map(<T>(i: T | InquiryMonad) => ('isInquiry' in (i as T) ? (i as InquiryMonad).join() : i))
-            .chain((y: Inquiry) => InquiryFOf(y)),
+            .promise(),
 
     isInquiry: true
 });

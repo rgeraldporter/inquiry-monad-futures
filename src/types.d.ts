@@ -67,5 +67,5 @@ interface InquiryMonad extends Monad {
     answer: Function;
     conclude: Function;
     isInquiry: boolean;
-    await?: Function;
+    promise?: Function;
 }
