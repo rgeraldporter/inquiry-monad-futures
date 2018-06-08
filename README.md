@@ -1,4 +1,4 @@
-#Inquiry Monad Futures
+# Inquiry Monad Futures
 ### v0.6.0
 
 Inquiry creates a process flow that allows one to chain multiple functions together to test a value ("subject"), granting observability over all results and returning a full report containing successes, failures, and the original test subject without mutation.
