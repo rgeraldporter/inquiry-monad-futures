@@ -21,6 +21,10 @@ const resolveAfter1SecondF = (x: any) => Future.after(1000, Pass('passed'));
 // @ts-ignore
 const resolveAfter2SecondsF = (x: any) => Future.after(2000, Fail('delayed fail'));
 
+// @ts-ignore
+const resolveAfter10msF = (x: any) => Future.after(10, Fail('delayed fail'));
+
+
 describe('The module', () => {
     it('should satisfy the first monad law of left identity', () => {
         // this is trickier to do with a typed monad, but not impossible
@@ -157,5 +161,30 @@ describe('The module', () => {
     // due to old prototype method problem
     it('should not have prototype pollution', () => {
         expect(InquiryP.subject === InquiryF.subject).toBe(false);
+    });
+
+    it('should be able to map a function as an inquireMap with InquiryF', (done) => {
+        const planets = [
+            'Mercury',
+            'Venus',
+            'Earth',
+            'Mars',
+            'Jupiter',
+            'Saturn',
+            'Uranus',
+            'Neptune'
+        ];
+
+        const startsWith = (word: string) => (checks: any) =>
+            word.startsWith(checks.letter) ? Pass(word) : Fail(word);
+
+        (InquiryF as any)
+            .subject({ letter: 'M' })
+            .inquire(resolveAfter10msF)
+            .inquireMap(startsWith, planets)
+            .suffice((pass: PassFailMonad) => {
+                expect(pass.join()).toEqual(['Mercury', 'Mars']);
+                done();
+            });
     });
 });

@@ -50,16 +50,18 @@ interface Inquiry {
     pass: PassMonad;
     informant: Function;
     iou: IOUMonad;
-    of?: Function;
 }
 
 interface InquiryMonad extends Monad {
     inquire: Function;
+    inquireMap: Function;
     zip: Function;
     swap: Function;
     fork: Function;
     faulted: Function;
     cleared: Function;
+    suffice: Function;
+    scratch: Function;
     informant: Function;
     unison: Function;
     breakpoint: Function;
@@ -67,5 +69,5 @@ interface InquiryMonad extends Monad {
     answer: Function;
     conclude: Function;
     isInquiry: boolean;
-    promise?: Function;
+    promise: Function;
 }
