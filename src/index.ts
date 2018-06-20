@@ -3,7 +3,7 @@ import { Future } from 'fluture';
 import { Pass, Fail, IOU } from 'inquiry-monad';
 
 const buildInqF = <T>(x: T) => (vals: Array<any>) =>
-    vals.reduce((acc, cur) => cur.answer(x, '(async fn)', InquiryF), x);
+    vals.reduce((acc, cur) => cur.answer(acc, '(async fn)', InquiryF), x);
 
 const InquiryFSubject = <T>(x: T | InquiryMonad) =>
     (x as any).isInquiry
