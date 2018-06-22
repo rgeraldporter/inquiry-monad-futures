@@ -1,12 +1,12 @@
 import { Maybe } from 'simple-maybe';
 import { Future } from 'fluture';
-import { Pass, Fail, IOU } from 'inquiry-monad';
+import { Pass, Fail, IOU, $$inquirySymbol } from 'inquiry-monad';
 
 const buildInqF = <T>(x: T) => (vals: Array<any>) =>
     vals.reduce((acc, cur) => cur.answer(acc, '(async fn)', InquiryF), x);
 
-const InquiryFSubject = <T>(x: T | InquiryMonad) =>
-    (x as any).isInquiry
+const InquiryFSubject = (x: any | InquiryMonad): InquiryMonad =>
+    x[$$inquirySymbol]
         ? x
         : InquiryF({
               subject: Maybe.of(x),
@@ -23,7 +23,7 @@ const warnTypeErrorF = <T>(x: T) => {
     return InquiryFSubject(x);
 };
 
-const InquiryFOf = (x: Inquiry) =>
+const InquiryFOf = (x: InquiryValue) =>
     'subject' in x &&
     'fail' in x &&
     'pass' in x &&
@@ -32,12 +32,12 @@ const InquiryFOf = (x: Inquiry) =>
         ? InquiryF(x)
         : warnTypeErrorF(x);
 
-const InquiryF = (x: Inquiry): InquiryMonad => ({
+const InquiryF = (x: InquiryValue): InquiryMonad => ({
     // Inquire: core method
     inquire: (f: Function) => {
         const inquireResponse = f(x.subject.join());
         const syncronousResult = (response: any) =>
-            response.isFail || response.isPass || response.isInquiry
+            response.isFail || response.isPass || response[$$inquirySymbol]
                 ? response.answer(x, f.name, InquiryF)
                 : Pass(response);
 
@@ -58,7 +58,7 @@ const InquiryF = (x: Inquiry): InquiryMonad => ({
                 const inquireResponse = f(ii)(inq.join().subject.join());
 
                 const syncronousResult = (response: any) =>
-                    response.isFail || response.isPass || response.isInquiry
+                    response.isFail || response.isPass || response[$$inquirySymbol]
                         ? response.answer(inq.join(), f.name, InquiryF)
                         : Pass(response);
 
@@ -120,10 +120,10 @@ const InquiryF = (x: Inquiry): InquiryMonad => ({
         }),
 
     // Standard monad methods - note that while these work, remember that `x` is a typed Object
-    map: (f: Function): Inquiry => InquiryFSubject(f(x)), // cast required for now
+    map: (f: Function): InquiryMonad => InquiryFSubject(f(x)), // cast required for now
     ap: (y: Monad) => y.map(x),
     chain: (f: Function) => f(x),
-    join: (): Inquiry => x,
+    join: (): InquiryValue => x,
 
     // execute the provided function if there are failures, else continue
     breakpoint: (f: Function) => (x.fail.join().length ? f(x) : InquiryF(x)),
@@ -132,7 +132,7 @@ const InquiryF = (x: Inquiry): InquiryMonad => ({
     milestone: (f: Function) => (x.pass.join().length ? f(x) : InquiryF(x)),
 
     // internal method: execute informant, return new InquiryF() based on updated results
-    answer: (i: Inquiry, n: string, _: Function): InquiryMonad => {
+    answer: (i: InquiryValue, n: string, _: Function): InquiryMonad => {
         i.informant([n, InquiryF(x)]);
         return InquiryF({
             subject: i.subject,
@@ -150,8 +150,8 @@ const InquiryF = (x: Inquiry): InquiryMonad => ({
         // @ts-ignore
         Future.parallel(Infinity, x.iou.join())
             .map(buildInqF(x))
-            .map((i: any) => (i.isInquiry ? i.join() : i))
-            .fork(console.error, (y: Inquiry) => ({
+            .map((i: any) => (i[$$inquirySymbol] ? i.join() : i))
+            .fork(console.error, (y: InquiryValue) => ({
                 subject: y.subject,
                 iou: y.iou,
                 fail: f(y.fail),
@@ -166,11 +166,11 @@ const InquiryF = (x: Inquiry): InquiryMonad => ({
             .map(buildInqF(x))
             .map(
                 <T>(i: T | InquiryMonad) =>
-                    'isInquiry' in (i as T) ? (i as InquiryMonad).join() : i
+                $$inquirySymbol in (i as T) ? (i as InquiryMonad).join() : i
             )
             .fork(
                 console.error,
-                (y: Inquiry) => (y.fail.isEmpty() ? f(y.pass) : InquiryF(y))
+                (y: InquiryValue) => (y.fail.isEmpty() ? f(y.pass) : InquiryF(y))
             ),
 
     // If fails, handoff aggregated fails to supplied function; if no fails, return existing InquiryF
@@ -180,11 +180,11 @@ const InquiryF = (x: Inquiry): InquiryMonad => ({
             .map(buildInqF(x))
             .map(
                 <T>(i: T | InquiryMonad) =>
-                    'isInquiry' in (i as T) ? (i as InquiryMonad).join() : i
+                $$inquirySymbol in (i as T) ? (i as InquiryMonad).join() : i
             )
             .fork(
                 console.error,
-                (y: Inquiry) => (y.fail.isEmpty() ? InquiryF(y) : f(y.fail))
+                (y: InquiryValue) => (y.fail.isEmpty() ? InquiryF(y) : f(y.fail))
             ),
 
     // If any passes, handoff aggregated passes to supplied function; if no passes, return existing InquiryF
@@ -194,11 +194,11 @@ const InquiryF = (x: Inquiry): InquiryMonad => ({
             .map(buildInqF(x))
             .map(
                 <T>(i: T | InquiryMonad) =>
-                    'isInquiry' in (i as T) ? (i as InquiryMonad).join() : i
+                $$inquirySymbol in (i as T) ? (i as InquiryMonad).join() : i
             )
             .fork(
                 console.error,
-                (y: Inquiry) => (y.pass.isEmpty() ? InquiryF(y) : f(y.pass))
+                (y: InquiryValue) => (y.pass.isEmpty() ? InquiryF(y) : f(y.pass))
             ),
 
     // If no passes, handoff aggregated fails to supplied function; if any passes, return existing InquiryF
@@ -208,11 +208,11 @@ const InquiryF = (x: Inquiry): InquiryMonad => ({
             .map(buildInqF(x))
             .map(
                 <T>(i: T | InquiryMonad) =>
-                    'isInquiry' in (i as T) ? (i as InquiryMonad).join() : i
+                $$inquirySymbol in (i as T) ? (i as InquiryMonad).join() : i
             )
             .fork(
                 console.error,
-                (y: Inquiry) => (y.pass.isEmpty() ? f(y.fail) : InquiryF(y))
+                (y: InquiryValue) => (y.pass.isEmpty() ? f(y.fail) : InquiryF(y))
             ),
 
     // Take left function and hands off fails if any, otherwise takes right function and hands off passes to that function
@@ -222,11 +222,25 @@ const InquiryF = (x: Inquiry): InquiryMonad => ({
             .map(buildInqF(x))
             .map(
                 <T>(i: T | InquiryMonad) =>
-                    'isInquiry' in (i as T) ? (i as InquiryMonad).join() : i
+                $$inquirySymbol in (i as T) ? (i as InquiryMonad).join() : i
             )
             .fork(
                 console.error,
-                (y: Inquiry) => (y.fail.join().length ? f(y.fail) : g(y.pass))
+                (y: InquiryValue) => (y.fail.join().length ? f(y.fail) : g(y.pass))
+            ),
+
+    // Take left function and hands off fails if any, otherwise takes right function and hands off passes to that function
+    fold: (f: Function, g: Function): Future<any, any> =>
+        // @ts-ignore
+        Future.parallel(Infinity, x.iou.join())
+            .map(buildInqF(x))
+            .map(
+                <T>(i: T | InquiryMonad) =>
+                $$inquirySymbol in (i as T) ? (i as InquiryMonad).join() : i
+            )
+            .fork(
+                console.error,
+                (y: InquiryValue) => (y.pass.join().length ? f(y.pass) : g(y.fail))
             ),
 
     // return a Future containing a merged fail/pass resultset array
@@ -236,9 +250,9 @@ const InquiryF = (x: Inquiry): InquiryMonad => ({
             .map(buildInqF(x))
             .map(
                 <T>(i: T | InquiryMonad) =>
-                    'isInquiry' in (i as T) ? (i as InquiryMonad).join() : i
+                $$inquirySymbol in (i as T) ? (i as InquiryMonad).join() : i
             )
-            .fork(console.error, (y: Inquiry) =>
+            .fork(console.error, (y: InquiryValue) =>
                 f(y.fail.join().concat(y.pass.join()))
             ),
 
@@ -249,7 +263,8 @@ const InquiryF = (x: Inquiry): InquiryMonad => ({
             .map(buildInqF(x))
             .promise(),
 
-    isInquiry: true
+    // @ts-ignore
+    [$$inquirySymbol]: true
 });
 
 const exportInquiryF = {
@@ -257,4 +272,4 @@ const exportInquiryF = {
     of: InquiryFOf
 };
 
-export { exportInquiryF as InquiryF, Pass, Fail, IOU, Future };
+export { exportInquiryF as InquiryF, Pass, Fail, IOU, Future, $$inquirySymbol };

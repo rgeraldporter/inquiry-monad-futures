@@ -30,7 +30,7 @@ describe('The module', () => {
         // this is trickier to do with a typed monad, but not impossible
         // we cannot just do some simple math as the value much adhere to type Inquiry
         // but the law seems to be provable with objects as much as they are with numbers
-        const a: Inquiry = {
+        const a: InquiryValue = {
             subject: Maybe.of(1),
             fail: Fail([]),
             pass: Pass([]),
@@ -38,7 +38,7 @@ describe('The module', () => {
             informant: (_: any) => _
         };
 
-        const f = (n: Inquiry): InquiryMonad =>
+        const f = (n: InquiryValue): InquiryMonad =>
             InquiryF.of(
                 Object.assign(n, {
                     subject: n.subject.map((x: number) => x + 1)
@@ -51,7 +51,7 @@ describe('The module', () => {
 
         expect(leftIdentity1.join()).toEqual(leftIdentity2.join());
 
-        const g = (n: Inquiry): InquiryMonad =>
+        const g = (n: InquiryValue): InquiryMonad =>
             InquiryF.of(
                 Object.assign(n, {
                     subject: n.subject.map((x: number) => ({
@@ -69,7 +69,7 @@ describe('The module', () => {
     });
 
     it('should satisfy the second monad law of right identity', () => {
-        const a: Inquiry = {
+        const a: InquiryValue = {
             subject: Maybe.of(3),
             fail: Fail([]),
             pass: Pass([]),
@@ -85,7 +85,7 @@ describe('The module', () => {
     });
 
     it('should satisfy the third monad law of associativity', () => {
-        const a: Inquiry = {
+        const a: InquiryValue = {
             subject: Maybe.of(30),
             fail: Fail([]),
             pass: Pass([]),
@@ -93,7 +93,7 @@ describe('The module', () => {
             informant: (_: any) => _
         };
 
-        const g = (n: Inquiry): InquiryMonad =>
+        const g = (n: InquiryValue): InquiryMonad =>
             InquiryF.of(
                 Object.assign(n, {
                     subject: n.subject.map((x: number) => ({
@@ -102,7 +102,7 @@ describe('The module', () => {
                     }))
                 })
             );
-        const f = (n: Inquiry): InquiryMonad =>
+        const f = (n: InquiryValue): InquiryMonad =>
             InquiryF.of(
                 Object.assign(n, {
                     subject: n.subject.map((x: number) => x + 1)
@@ -113,7 +113,7 @@ describe('The module', () => {
         const associativity1 = InquiryF.of(a)
             .chain(g)
             .chain(f);
-        const associativity2 = InquiryF.of(a).chain((x: Inquiry) =>
+        const associativity2 = InquiryF.of(a).chain((x: InquiryValue) =>
             g(x).chain(f)
         );
 

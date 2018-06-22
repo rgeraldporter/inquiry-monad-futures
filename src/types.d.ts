@@ -44,7 +44,7 @@ interface FailMonad extends PassFailMonad {
     isFail: true;
 }
 
-interface Inquiry {
+interface InquiryValue {
     subject: any;
     fail: FailMonad;
     pass: PassMonad;
@@ -58,6 +58,7 @@ interface InquiryMonad extends Monad {
     zip: Function;
     swap: Function;
     fork: Function;
+    fold: Function;
     faulted: Function;
     cleared: Function;
     suffice: Function;
@@ -68,6 +69,5 @@ interface InquiryMonad extends Monad {
     milestone: Function;
     answer: Function;
     conclude: Function;
-    isInquiry: boolean;
     promise: Function;
 }
