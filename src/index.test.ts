@@ -1,8 +1,32 @@
-import { InquiryF, Pass, Fail, IOU } from './index';
+import { InquiryF, Pass, Fail, IOU, Questionset, Receipt } from './index';
 import { InquiryP } from 'inquiry-monad';
 import * as R from 'ramda';
 import { Maybe } from 'simple-maybe';
 import Future from 'fluture';
+import {
+    Monad,
+    InquiryMonad,
+    IOUMonad,
+    PassFailMonad,
+    PassMonad,
+    FailMonad,
+    InquiryValue,
+    ReceiptMonad,
+    ReceiptValue,
+    QuestionsetMonad,
+    QuestionMonad,
+    QuestionValue
+} from 'inquiry-monad/built/inquiry-monad';
+
+import {
+    $$inquirySymbol,
+    $$questionsetSymbol,
+    $$questionSymbol,
+    $$passSymbol,
+    $$failSymbol,
+    $$iouSymbol,
+    $$receiptSymbol
+} from 'inquiry-monad/built/symbols';
 
 const oldEnough = (a: any) =>
     a.age > 13 ? Pass(['old enough']) : Fail(['not old enough']);
@@ -35,7 +59,9 @@ describe('The module', () => {
             fail: Fail([]),
             pass: Pass([]),
             iou: IOU([]),
-            informant: (_: any) => _
+            informant: (_: any) => _,
+            questionset: Questionset.of(['', () => {}]),
+            receipt: Receipt([])
         };
 
         const f = (n: InquiryValue): InquiryMonad =>
@@ -74,7 +100,9 @@ describe('The module', () => {
             fail: Fail([]),
             pass: Pass([]),
             iou: IOU([]),
-            informant: (_: any) => _
+            informant: (_: any) => _,
+            questionset: Questionset.of(['', () => {}]),
+            receipt: Receipt([])
         };
 
         const rightIdentity1 = InquiryF.of(a).chain(InquiryF.of);
@@ -90,7 +118,9 @@ describe('The module', () => {
             fail: Fail([]),
             pass: Pass([]),
             iou: IOU([]),
-            informant: (_: any) => _
+            informant: (_: any) => _,
+            questionset: Questionset.of(['', () => {}]),
+            receipt: Receipt([])
         };
 
         const g = (n: InquiryValue): InquiryMonad =>
