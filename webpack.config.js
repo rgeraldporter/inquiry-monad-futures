@@ -16,7 +16,8 @@ module.exports = {
     },
     devtool: 'source-map',
     externals: {
-        'fluture': 'Future'
+        'fluture': 'Future',
+        'inquiry-monad': 'Inquiry'
     },
     module: {
         rules: [

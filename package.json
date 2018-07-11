@@ -1,6 +1,6 @@
 {
     "name": "inquiry-monad-futures",
-    "version": "0.8.1",
+    "version": "0.8.2",
     "description": "Inquiry Monad with support for Futures.",
     "main": "./built/index.js",
     "scripts": {
