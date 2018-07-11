@@ -1,9 +1,6 @@
-# Inquiry Monad Futures
-### v0.7.0
+# Inquiry: Futures
 
-Inquiry creates a process flow that allows one to chain multiple functions together to test a value ("subject"), granting observability over all results and returning a full report containing successes, failures, and the original test subject without mutation.
-
-Inquiry's API is comparible to Promises, and is designed to have an expressive, friendly API. It utilizes the concepts of functional programming, though experience with functional programming is not meant to be a requirement for ease of use. To those experienced with functional programming, Inquiry can be compared with an `Either` or a `Validation` library.
+Inquiry is an expressive API that allows one ask multiple questions about a subject value, and observe all results. This process returns a collection of all passes, fails, and the original subject value.
 
 ## Documentation
 
