@@ -12,12 +12,11 @@ module.exports = {
         umdNamedDefine: true
     },
     resolve: {
-        extensions: ['.ts']
+        extensions: ['.ts', '.js']
     },
     devtool: 'source-map',
     externals: {
-        'fluture': 'Future',
-        'inquiry-monad': 'Inquiry'
+        'fluture': 'Future'
     },
     module: {
         rules: [

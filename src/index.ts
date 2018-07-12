@@ -15,7 +15,7 @@ import {
     QuestionsetMonad,
     QuestionMonad,
     QuestionValue
-} from 'inquiry-monad/built/inquiry-monad.js';
+} from 'inquiry-monad/built/inquiry-monad';
 
 import {
     $$inquirySymbol,
@@ -25,7 +25,7 @@ import {
     $$failSymbol,
     $$iouSymbol,
     $$receiptSymbol
-} from 'inquiry-monad/built/symbols.js';
+} from 'inquiry-monad/built/symbols';
 
 const noop = (): void => {};
 
