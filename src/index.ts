@@ -29,8 +29,11 @@ import {
 
 const noop = (): void => {};
 
-const buildInqF = <T>(x: T) => (vals: Array<any>) =>
-    vals.reduce((acc, cur) => cur[1].answer(acc, '(async fn)', InquiryF), x);
+const buildInqF = (x: InquiryValue) => (vals: Array<any>) =>
+    vals.reduce(
+        (acc, cur) => cur[1].answer(acc.join(), '(async fn)', InquiryF),
+        InquiryF(x)
+    );
 
 // this is a bit complex, so here it goes:
 // Take all our IOUs (Questions), extract and resolve their Futures
@@ -40,7 +43,9 @@ const resolveQs = (x: InquiryValue) =>
         (q: QuestionMonad): any =>
             q
                 .extract()()
-                .chain((f: FutureInstance<any, any>) => Future.of([q.name(), f]))
+                .chain((f: FutureInstance<any, any>) =>
+                    Future.of([q.name(), f])
+                )
     );
 
 const InquiryFSubject = (x: any | InquiryMonad): InquiryMonad =>
@@ -92,6 +97,9 @@ const InquiryF = (x: InquiryValue): InquiryMonad => ({
             ? fExtractFn
             : (x.questionset as QuestionsetMonad).find(fExtractFn);
 
+        const inquireResponse =
+            typeof inquire === 'function' ? inquire(x.subject.join()) : {};
+
         const warnNotPassFail = (resp: any): InquiryMonad => {
             console.warn(
                 'inquire was passed a function that does not return Pass or Fail:',
@@ -100,9 +108,6 @@ const InquiryF = (x: InquiryValue): InquiryMonad => ({
             console.warn('response was:', resp);
             return InquiryF(x);
         };
-
-        const inquireResponse =
-            typeof inquire === 'function' ? inquire(x.subject.join()) : {};
 
         const syncronousResult = (response: any): InquiryMonad =>
             response[$$failSymbol] ||

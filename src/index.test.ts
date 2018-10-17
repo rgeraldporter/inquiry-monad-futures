@@ -45,19 +45,17 @@ const resolveAfter1SecondF = (x: any) => Future.after(1000, Pass('passed'));
 // @ts-ignore
 const resolveAfter10msFPass = (x: any) => Future.after(10, Pass('passed'));
 
-const encasePromise = (x: any) =>
-    new Promise((resolve, reject) => resolve('x'));
+const encasePromise = (x: any) => Promise.resolve(Pass('x'));
+const encaseRejectedPromise = (x: any) => Promise.resolve(Fail('x'));
 
-const resolveEncaseFork = (x: any) =>
-    // @ts-ignore
-    Future.encaseP(x => encasePromise(x)).fork(
-        (x: any) => Fail(x),
-        (y: any) => Pass(y)
-    );
+// @ts-ignore
+const resolveEncaseFork = Future.encaseP(x => encasePromise(x));
+// @ts-ignore
+const rejectEncaseFork = Future.encaseP(x => encaseRejectedPromise(x));
 
 const resolveTryFork = () =>
     // @ts-ignore
-    Future.tryP(() => Promise.resolve('Hello')).fork(Fail, Pass);
+    Future.tryP(() => Promise.resolve('Hello')).map((val: any) => Pass(val));
 
 // @ts-ignore
 const resolveAfter2SecondsF = (x: any) =>
@@ -285,10 +283,7 @@ describe('The module', () => {
     });
 
     it('should be able to return a Future after a fork on the pass track', done => {
-        const planets = [
-            'Mercury',
-            'Mars'
-        ];
+        const planets = ['Mercury', 'Mars'];
 
         const startsWith = (word: string) => (checks: any) =>
             word.startsWith(checks.letter) ? Pass(word) : Fail(word);
@@ -356,7 +351,8 @@ describe('The module', () => {
                     expect(passes.join()).toEqual([
                         'Mercury',
                         'Mars',
-                        'passed'
+                        'passed',
+                        'Hello'
                     ]);
                     return passes;
                 }
@@ -364,8 +360,49 @@ describe('The module', () => {
             .fork(
                 (_: any) => expect(true).toBe(false), // should not reach here
                 (inqValue: any) => {
-                    expect(inqValue.pass.join()).toEqual(['Mercury', 'Mars', 'passed']);
+                    expect(inqValue.pass.join()).toEqual([
+                        'Mercury',
+                        'Mars',
+                        'passed',
+                        'Hello'
+                    ]);
                     done();
+                }
+            );
+    });
+
+    it('should be able to return a Future after a fork on the pass track with an encased Promise', done => {
+        const planets = ['Mercury', 'Mars'];
+
+        const startsWith = (word: string) => (checks: any) =>
+            word.startsWith(checks.letter) ? Pass(word) : Fail(word);
+
+        (InquiryF as any)
+            .subject({ letter: 'M' })
+            .inquire(resolveAfter10msFPass)
+            .inquire(resolveEncaseFork)
+            .inquireMap(startsWith, planets)
+            .fork(
+                (fails: FailMonad) => expect(true).toBe(false), // shouldn't happen!
+                (passes: PassMonad) => {
+                    expect(passes.join()).toEqual([
+                        'Mercury',
+                        'Mars',
+                        'passed',
+                        'x'
+                    ]);
+                    return Future.of(passes.join()).fork(
+                        (_: any) => expect(true).toBe(false), // shouldn't happen!
+                        (results: any) => {
+                            expect(results).toEqual([
+                                'Mercury',
+                                'Mars',
+                                'passed',
+                                'x'
+                            ]);
+                            done();
+                        }
+                    );
                 }
             );
     });
