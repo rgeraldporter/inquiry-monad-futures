@@ -2,7 +2,7 @@ import { InquiryF, Pass, Fail, IOU, Questionset, Receipt } from './index';
 import { InquiryP } from 'inquiry-monad';
 import * as R from 'ramda';
 import { Maybe } from 'simple-maybe';
-import Future from 'fluture';
+import { Future, FutureInstance, FutureTypeRep } from 'fluture';
 import {
     Monad,
     InquiryMonad,
@@ -43,11 +43,29 @@ const mathGrade = () => Fail(['Failed at math']);
 const resolveAfter1SecondF = (x: any) => Future.after(1000, Pass('passed'));
 
 // @ts-ignore
-const resolveAfter2SecondsF = (x: any) => Future.after(2000, Fail('delayed fail'));
+const resolveAfter10msFPass = (x: any) => Future.after(10, Pass('passed'));
+
+const encasePromise = (x: any) =>
+    new Promise((resolve, reject) => resolve('x'));
+
+const resolveEncaseFork = (x: any) =>
+    // @ts-ignore
+    Future.encaseP(x => encasePromise(x)).fork(
+        (x: any) => Fail(x),
+        (y: any) => Pass(y)
+    );
+
+const resolveTryFork = () =>
+    // @ts-ignore
+    Future.tryP(() => Promise.resolve('Hello')).fork(Fail, Pass);
+
+// @ts-ignore
+const resolveAfter2SecondsF = (x: any) =>
+    // @ts-ignore
+    Future.after(2000, Fail('delayed fail'));
 
 // @ts-ignore
 const resolveAfter10msF = (x: any) => Future.after(10, Fail('delayed fail'));
-
 
 describe('The module', () => {
     it('should satisfy the first monad law of left identity', () => {
@@ -150,7 +168,7 @@ describe('The module', () => {
         expect(associativity1.join()).toEqual(associativity2.join());
     });
 
-    it('should be able to make many checks, including async ones, and run a faulted unwrap', (done) => {
+    it('should be able to make many checks, including async ones, and run a faulted unwrap', done => {
         return (InquiryF as any)
             .subject({ name: 'test', age: 10, description: 'blah' })
             .inquire(oldEnough)
@@ -167,7 +185,7 @@ describe('The module', () => {
             });
     });
 
-    it('should be able to make many checks, including async ones, and run a faulted unwrap after an await', (done) => {
+    it('should be able to make many checks, including async ones, and run a faulted unwrap after an await', done => {
         return (InquiryF as any)
             .subject({ name: 'test', age: 10, description: 'blah' })
             .inquire(oldEnough)
@@ -193,7 +211,7 @@ describe('The module', () => {
         expect(InquiryP.subject === InquiryF.subject).toBe(false);
     });
 
-    it('should be able to map a function as an inquireMap with InquiryF', (done) => {
+    it('should be able to map a function as an inquireMap with InquiryF', done => {
         const planets = [
             'Mercury',
             'Venus',
@@ -216,5 +234,139 @@ describe('The module', () => {
                 expect(pass.join()).toEqual(['Mercury', 'Mars']);
                 done();
             });
+    });
+
+    it('should be able to return a Future after a fork on the fail track', done => {
+        const planets = [
+            'Mercury',
+            'Venus',
+            'Earth',
+            'Mars',
+            'Jupiter',
+            'Saturn',
+            'Uranus',
+            'Neptune'
+        ];
+
+        const startsWith = (word: string) => (checks: any) =>
+            word.startsWith(checks.letter) ? Pass(word) : Fail(word);
+
+        (InquiryF as any)
+            .subject({ letter: 'M' })
+            .inquire(resolveAfter10msFPass)
+            .inquireMap(startsWith, planets)
+            .fork(
+                (fails: FailMonad) => {
+                    expect(fails.join()).toEqual([
+                        'Venus',
+                        'Earth',
+                        'Jupiter',
+                        'Saturn',
+                        'Uranus',
+                        'Neptune'
+                    ]);
+                    return Future.of(fails.join()).fork(
+                        (_: any) => expect(true).toBe(false), // shouldn't happen!
+                        (results: any) => {
+                            expect(results).toEqual([
+                                'Venus',
+                                'Earth',
+                                'Jupiter',
+                                'Saturn',
+                                'Uranus',
+                                'Neptune'
+                            ]);
+                            done();
+                        }
+                    );
+                },
+                (passes: PassMonad) => expect(true).toBe(false) // shouldn't happen!
+            );
+    });
+
+    it('should be able to return a Future after a fork on the pass track', done => {
+        const planets = [
+            'Mercury',
+            'Mars'
+        ];
+
+        const startsWith = (word: string) => (checks: any) =>
+            word.startsWith(checks.letter) ? Pass(word) : Fail(word);
+
+        (InquiryF as any)
+            .subject({ letter: 'M' })
+            .inquire(resolveAfter10msFPass)
+            .inquireMap(startsWith, planets)
+            .fork(
+                (fails: FailMonad) => expect(true).toBe(false), // shouldn't happen!
+                (passes: PassMonad) => {
+                    expect(passes.join()).toEqual([
+                        'Mercury',
+                        'Mars',
+                        'passed'
+                    ]);
+                    return Future.of(passes.join()).fork(
+                        (_: any) => expect(true).toBe(false), // shouldn't happen!
+                        (results: any) => {
+                            expect(results).toEqual([
+                                'Mercury',
+                                'Mars',
+                                'passed'
+                            ]);
+                            done();
+                        }
+                    );
+                }
+            );
+    });
+
+    it('should be able to return a Future for forking after a conclude', done => {
+        const planets = [
+            'Mercury',
+            'Venus',
+            'Earth',
+            'Mars',
+            'Jupiter',
+            'Saturn',
+            'Uranus',
+            'Neptune'
+        ];
+
+        const startsWith = (word: string) => (checks: any) =>
+            word.startsWith(checks.letter) ? Pass(word) : Fail(word);
+
+        (InquiryF as any)
+            .subject({ letter: 'M' })
+            .inquire(resolveAfter10msFPass)
+            .inquireMap(startsWith, planets)
+            .inquire(resolveTryFork)
+            .conclude(
+                (fails: any) => {
+                    expect(fails.join()).toEqual([
+                        'Venus',
+                        'Earth',
+                        'Jupiter',
+                        'Saturn',
+                        'Uranus',
+                        'Neptune'
+                    ]);
+                    return fails;
+                },
+                (passes: PassMonad) => {
+                    expect(passes.join()).toEqual([
+                        'Mercury',
+                        'Mars',
+                        'passed'
+                    ]);
+                    return passes;
+                }
+            )
+            .fork(
+                (_: any) => expect(true).toBe(false), // should not reach here
+                (inqValue: any) => {
+                    expect(inqValue.pass.join()).toEqual(['Mercury', 'Mars', 'passed']);
+                    done();
+                }
+            );
     });
 });

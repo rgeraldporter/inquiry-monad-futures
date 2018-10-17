@@ -1,5 +1,5 @@
 import { Maybe } from 'simple-maybe';
-import { Future } from 'fluture';
+import { Future, FutureInstance } from 'fluture';
 import { Pass, Fail, IOU, Questionset, Question, Receipt } from 'inquiry-monad';
 
 import {
@@ -40,7 +40,7 @@ const resolveQs = (x: InquiryValue) =>
         (q: QuestionMonad): any =>
             q
                 .extract()()
-                .chain((f: Future<any, any>) => Future.of([q.name(), f]))
+                .chain((f: FutureInstance<any, any>) => Future.of([q.name(), f]))
     );
 
 const InquiryFSubject = (x: any | InquiryMonad): InquiryMonad =>
@@ -283,15 +283,17 @@ const InquiryF = (x: InquiryValue): InquiryMonad => ({
         });
     },
 
-    // Unwrapping methods: all return Futures, all complete outstanding IOUs
+    // Unwrapping methods: all complete outstanding IOUs
 
     // Unwraps the Inquiry after ensuring all IOUs are completed
-    conclude: (f: Function, g: Function): Future<any, any> =>
+    // this DOES NOT FORK
+    // callee MUST fork to retrieve supplied value
+    conclude: (f: Function, g: Function): FutureInstance<any, any> =>
         // @ts-ignore
-        Future.parallel(Infinity, x.iou.join())
+        Future.parallel(Infinity, resolveQs(x))
             .map(buildInqF(x))
             .map((i: any) => (i[$$inquirySymbol] ? i.join() : i))
-            .fork(console.error, (y: InquiryValue) => ({
+            .map((y: InquiryValue) => ({
                 subject: y.subject,
                 iou: y.iou,
                 fail: f(y.fail),
@@ -302,9 +304,9 @@ const InquiryF = (x: InquiryValue): InquiryMonad => ({
             })),
 
     // If no fails, handoff aggregated passes to supplied function; if fails, return existing InquiryF
-    cleared: (f: Function): Future<any, any> =>
+    cleared: (f: Function): FutureInstance<any, any> =>
         // @ts-ignore
-        Future.parallel(Infinity, x.iou.join())
+        Future.parallel(Infinity, resolveQs(x))
             .map(buildInqF(x))
             .map(
                 <T>(i: T | InquiryMonad) =>
@@ -317,7 +319,7 @@ const InquiryF = (x: InquiryValue): InquiryMonad => ({
             ),
 
     // If fails, handoff aggregated fails to supplied function; if no fails, return existing InquiryF
-    faulted: (f: Function): Future<any, any> =>
+    faulted: (f: Function): FutureInstance<any, any> =>
         // @ts-ignore
         Future.parallel(Infinity, resolveQs(x))
             .map(buildInqF(x))
@@ -332,7 +334,7 @@ const InquiryF = (x: InquiryValue): InquiryMonad => ({
             ),
 
     // If any passes, handoff aggregated passes to supplied function; if no passes, return existing InquiryF
-    suffice: (f: Function): Future<any, any> =>
+    suffice: (f: Function): FutureInstance<any, any> =>
         // @ts-ignore
         Future.parallel(Infinity, resolveQs(x))
             .map(buildInqF(x))
@@ -347,7 +349,7 @@ const InquiryF = (x: InquiryValue): InquiryMonad => ({
             ),
 
     // If no passes, handoff aggregated fails to supplied function; if any passes, return existing InquiryF
-    scratch: (f: Function): Future<any, any> =>
+    scratch: (f: Function): FutureInstance<any, any> =>
         // @ts-ignore
         Future.parallel(Infinity, resolveQs(x))
             .map(buildInqF(x))
@@ -362,7 +364,7 @@ const InquiryF = (x: InquiryValue): InquiryMonad => ({
             ),
 
     // Take left function and hands off fails if any, otherwise takes right function and hands off passes to that function
-    fork: (f: Function, g: Function): Future<any, any> =>
+    fork: (f: Function, g: Function): FutureInstance<any, any> =>
         // @ts-ignore
         Future.parallel(Infinity, resolveQs(x))
             .map(buildInqF(x))
@@ -377,7 +379,7 @@ const InquiryF = (x: InquiryValue): InquiryMonad => ({
             ),
 
     // Take left function and hands off fails if any, otherwise takes right function and hands off passes to that function
-    fold: (f: Function, g: Function): Future<any, any> =>
+    fold: (f: Function, g: Function): FutureInstance<any, any> =>
         // @ts-ignore
         Future.parallel(Infinity, resolveQs(x))
             .map(buildInqF(x))
@@ -392,7 +394,7 @@ const InquiryF = (x: InquiryValue): InquiryMonad => ({
             ),
 
     // return a Future containing a merged fail/pass resultset array
-    zip: (f: Function): Future<any, any> =>
+    zip: (f: Function): FutureInstance<any, any> =>
         // @ts-ignore
         Future.parallel(Infinity, resolveQs(x))
             .map(buildInqF(x))

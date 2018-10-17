@@ -1,6 +1,6 @@
 {
     "name": "inquiry-monad-futures",
-    "version": "0.8.3",
+    "version": "0.9.0",
     "description": "Inquiry Monad with support for Futures.",
     "main": "./built/index.js",
     "scripts": {
@@ -16,9 +16,9 @@
     "author": "Robert Gerald Porter <rob@weeverapps.com>",
     "license": "MIT",
     "dependencies": {
-        "fluture": "8.0.2",
-        "inquiry-monad": "0.29.2",
-        "simple-maybe": "0.3.5",
+        "fluture": "9.0.2",
+        "inquiry-monad": "0.30.1",
+        "simple-maybe": "1.2.0",
         "typescript": "2.8.3"
     },
     "devDependencies": {
