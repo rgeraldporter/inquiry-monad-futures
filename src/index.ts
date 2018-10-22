@@ -1,5 +1,5 @@
 import { Maybe } from 'simple-maybe';
-import { Future, FutureInstance } from 'fluture';
+import { Future, FutureInstance, done, FutureTypeRep } from 'fluture';
 import { Pass, Fail, IOU, Questionset, Question, Receipt } from 'inquiry-monad';
 
 import {
@@ -38,15 +38,21 @@ const buildInqF = (x: InquiryValue) => (vals: Array<any>) =>
 // this is a bit complex, so here it goes:
 // Take all our IOUs (Questions), extract and resolve their Futures
 // then take those results apply to a tuple with the question name/description and result
-const resolveQs = (x: InquiryValue) =>
-    x.iou.join().map(
-        (q: QuestionMonad): any =>
-            q
-                .extract()()
-                .chain((f: FutureInstance<any, any>) =>
-                    Future.of([q.name(), f])
-                )
-    );
+const resolveQs = (x: InquiryValue): FutureInstance<any, any> =>
+    x.iou.join().length
+        ? Future((reject, resolve) => {
+              const results: Array<Array<PassMonad | FailMonad | string>> = [];
+              x.iou.join().map(
+                  (q: QuestionMonad): any => {
+                      q.extract()().fork(reject, (result: any) => {
+                          results.push([q.name(), result]);
+                          results.length === x.iou.join().length &&
+                              resolve(results);
+                      });
+                  }
+              );
+          })
+        : Future.of([]);
 
 const InquiryFSubject = (x: any | InquiryMonad): InquiryMonad =>
     x[$$inquirySymbol]
@@ -105,7 +111,6 @@ const InquiryF = (x: InquiryValue): InquiryMonad => ({
                 'inquire was passed a function that does not return Pass or Fail:',
                 fnName
             );
-            console.warn('response was:', resp);
             return InquiryF(x);
         };
 
@@ -159,7 +164,6 @@ const InquiryF = (x: InquiryValue): InquiryMonad => ({
                         'inquire was passed a function that does not return Pass or Fail:',
                         fnName
                     );
-                    console.warn('response was:', resp);
                     return inq;
                 };
                 const inquireResponse =
@@ -294,128 +298,151 @@ const InquiryF = (x: InquiryValue): InquiryMonad => ({
     // this DOES NOT FORK
     // callee MUST fork to retrieve supplied value
     conclude: (f: Function, g: Function): FutureInstance<any, any> =>
-        // @ts-ignore
-        Future.parallel(Infinity, resolveQs(x))
-            .map(buildInqF(x))
-            .map((i: any) => (i[$$inquirySymbol] ? i.join() : i))
-            .map((y: InquiryValue) => ({
-                subject: y.subject,
-                iou: y.iou,
-                fail: f(y.fail),
-                pass: g(y.pass),
-                informant: y.informant,
-                questionset: y.questionset,
-                receipt: y.receipt
-            })),
+        Future((reject, resolve) =>
+            resolveQs(x)
+                .map(buildInqF(x))
+                .map((i: any) => (i[$$inquirySymbol] ? i.join() : i))
+                .fork(reject, (y: InquiryValue) =>
+                    resolve({
+                        subject: y.subject,
+                        iou: y.iou,
+                        fail: f(y.fail),
+                        pass: g(y.pass),
+                        informant: y.informant,
+                        questionset: y.questionset,
+                        receipt: y.receipt
+                    })
+                )
+        ),
 
     // If no fails, handoff aggregated passes to supplied function; if fails, return existing InquiryF
     cleared: (f: Function): FutureInstance<any, any> =>
-        // @ts-ignore
-        Future.parallel(Infinity, resolveQs(x))
-            .map(buildInqF(x))
-            .map(
-                <T>(i: T | InquiryMonad) =>
-                    $$inquirySymbol in (i as T) ? (i as InquiryMonad).join() : i
-            )
-            .fork(
-                console.error,
-                (y: InquiryValue) =>
-                    y.fail.isEmpty() ? f(y.pass) : InquiryF(y)
-            ),
+        Future.of(
+            resolveQs(x)
+                .map(buildInqF(x))
+                .map(
+                    <T>(i: T | InquiryMonad) =>
+                        $$inquirySymbol in (i as T)
+                            ? (i as InquiryMonad).join()
+                            : i
+                )
+                .fork(
+                    console.error,
+                    (y: InquiryValue) =>
+                        y.fail.isEmpty() ? f(y.pass) : InquiryF(y)
+                )
+        ),
 
     // If fails, handoff aggregated fails to supplied function; if no fails, return existing InquiryF
     faulted: (f: Function): FutureInstance<any, any> =>
-        // @ts-ignore
-        Future.parallel(Infinity, resolveQs(x))
-            .map(buildInqF(x))
-            .map(
-                <T>(i: T | InquiryMonad) =>
-                    $$inquirySymbol in (i as T) ? (i as InquiryMonad).join() : i
-            )
-            .fork(
-                console.error,
-                (y: InquiryValue) =>
-                    y.fail.isEmpty() ? InquiryF(y) : f(y.fail)
-            ),
+        Future.of(
+            resolveQs(x)
+                .map(buildInqF(x))
+                .map(
+                    <T>(i: T | InquiryMonad) =>
+                        $$inquirySymbol in (i as T)
+                            ? (i as InquiryMonad).join()
+                            : i
+                )
+                .fork(
+                    console.error,
+                    (y: InquiryValue) =>
+                        y.fail.isEmpty() ? InquiryF(y) : f(y.fail)
+                )
+        ),
 
     // If any passes, handoff aggregated passes to supplied function; if no passes, return existing InquiryF
     suffice: (f: Function): FutureInstance<any, any> =>
-        // @ts-ignore
-        Future.parallel(Infinity, resolveQs(x))
-            .map(buildInqF(x))
-            .map(
-                <T>(i: T | InquiryMonad) =>
-                    $$inquirySymbol in (i as T) ? (i as InquiryMonad).join() : i
-            )
-            .fork(
-                console.error,
-                (y: InquiryValue) =>
-                    y.pass.isEmpty() ? InquiryF(y) : f(y.pass)
-            ),
+        Future.of(
+            resolveQs(x)
+                .map(buildInqF(x))
+                .map(
+                    <T>(i: T | InquiryMonad) =>
+                        $$inquirySymbol in (i as T)
+                            ? (i as InquiryMonad).join()
+                            : i
+                )
+                .fork(
+                    console.error,
+                    (y: InquiryValue) =>
+                        y.pass.isEmpty() ? InquiryF(y) : f(y.pass)
+                )
+        ),
 
     // If no passes, handoff aggregated fails to supplied function; if any passes, return existing InquiryF
     scratch: (f: Function): FutureInstance<any, any> =>
-        // @ts-ignore
-        Future.parallel(Infinity, resolveQs(x))
-            .map(buildInqF(x))
-            .map(
-                <T>(i: T | InquiryMonad) =>
-                    $$inquirySymbol in (i as T) ? (i as InquiryMonad).join() : i
-            )
-            .fork(
-                console.error,
-                (y: InquiryValue) =>
-                    y.pass.isEmpty() ? f(y.fail) : InquiryF(y)
-            ),
+        Future.of(
+            resolveQs(x)
+                .map(buildInqF(x))
+                .map(
+                    <T>(i: T | InquiryMonad) =>
+                        $$inquirySymbol in (i as T)
+                            ? (i as InquiryMonad).join()
+                            : i
+                )
+                .fork(
+                    console.error,
+                    (y: InquiryValue) =>
+                        y.pass.isEmpty() ? f(y.fail) : InquiryF(y)
+                )
+        ),
 
     // Take left function and hands off fails if any, otherwise takes right function and hands off passes to that function
     fork: (f: Function, g: Function): FutureInstance<any, any> =>
-        // @ts-ignore
-        Future.parallel(Infinity, resolveQs(x))
-            .map(buildInqF(x))
-            .map(
-                <T>(i: T | InquiryMonad) =>
-                    $$inquirySymbol in (i as T) ? (i as InquiryMonad).join() : i
-            )
-            .fork(
-                console.error,
-                (y: InquiryValue) =>
-                    y.fail.join().length ? f(y.fail) : g(y.pass)
-            ),
+        Future.of(
+            resolveQs(x)
+                .map(buildInqF(x))
+                .map(
+                    <T>(i: T | InquiryMonad) =>
+                        $$inquirySymbol in (i as T)
+                            ? (i as InquiryMonad).join()
+                            : i
+                )
+                .fork(
+                    console.error,
+                    (y: InquiryValue) =>
+                        y.fail.join().length ? f(y.fail) : g(y.pass)
+                )
+        ),
 
     // Take left function and hands off fails if any, otherwise takes right function and hands off passes to that function
     fold: (f: Function, g: Function): FutureInstance<any, any> =>
-        // @ts-ignore
-        Future.parallel(Infinity, resolveQs(x))
-            .map(buildInqF(x))
-            .map(
-                <T>(i: T | InquiryMonad) =>
-                    $$inquirySymbol in (i as T) ? (i as InquiryMonad).join() : i
-            )
-            .fork(
-                console.error,
-                (y: InquiryValue) =>
-                    y.pass.join().length ? f(y.pass) : g(y.fail)
-            ),
+        Future.of(
+            resolveQs(x)
+                .map(buildInqF(x))
+                .map(
+                    <T>(i: T | InquiryMonad) =>
+                        $$inquirySymbol in (i as T)
+                            ? (i as InquiryMonad).join()
+                            : i
+                )
+                .fork(
+                    console.error,
+                    (y: InquiryValue) =>
+                        y.pass.join().length ? f(y.pass) : g(y.fail)
+                )
+        ),
 
     // return a Future containing a merged fail/pass resultset array
     zip: (f: Function): FutureInstance<any, any> =>
-        // @ts-ignore
-        Future.parallel(Infinity, resolveQs(x))
-            .map(buildInqF(x))
-            .map(
-                <T>(i: T | InquiryMonad) =>
-                    $$inquirySymbol in (i as T) ? (i as InquiryMonad).join() : i
-            )
-            .fork(console.error, (y: InquiryValue) =>
-                f(y.fail.join().concat(y.pass.join()))
-            ),
+        Future.of(
+            resolveQs(x)
+                .map(buildInqF(x))
+                .map(
+                    <T>(i: T | InquiryMonad) =>
+                        $$inquirySymbol in (i as T)
+                            ? (i as InquiryMonad).join()
+                            : i
+                )
+                .fork(console.error, (y: InquiryValue) =>
+                    f(y.fail.join().concat(y.pass.join()))
+                )
+        ),
 
     // resolves all IOUs, returns a Promise
     // @ts-ignore @todo add .promise as optional part of an Inquiry
     promise: (): Future<any, any> =>
-        // @ts-ignore
-        Future.parallel(Infinity, resolveQs(x))
+        resolveQs(x)
             .map(buildInqF(x))
             .promise(),
 

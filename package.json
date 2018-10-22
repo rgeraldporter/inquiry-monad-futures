@@ -1,12 +1,12 @@
 {
     "name": "inquiry-monad-futures",
-    "version": "0.9.1",
+    "version": "0.10.0",
     "description": "Inquiry Monad with support for Futures.",
-    "main": "./built/index.js",
+    "main": "built/index",
     "scripts": {
-        "test": "jest",
+        "test": "tsc && jest",
         "build": "tsc",
-        "postinstall": "npm run build",
+        "prepublishOnly": "npm run build && npm run bundle",
         "bundle": "webpack --config webpack.config.js"
     },
     "repository": {
@@ -17,7 +17,7 @@
     "license": "MIT",
     "dependencies": {
         "fluture": "9.0.2",
-        "inquiry-monad": "0.30.1",
+        "inquiry-monad": "0.30.2",
         "simple-maybe": "1.2.0",
         "typescript": "2.8.3"
     },
@@ -31,5 +31,11 @@
         "ts-node": "6.0.0",
         "webpack": "4.8.3",
         "webpack-cli": "2.1.4"
-    }
+    },
+    "files": [
+        "built/index.js",
+        "built/symbols.js",
+        "bundles/inquiry-monad-futures.min.js",
+        "bundles/inquiry-monad-futures.min.js.map"
+    ]
 }

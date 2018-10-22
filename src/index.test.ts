@@ -351,8 +351,8 @@ describe('The module', () => {
                     expect(passes.join()).toEqual([
                         'Mercury',
                         'Mars',
-                        'passed',
-                        'Hello'
+                        'Hello',
+                        'passed'
                     ]);
                     return passes;
                 }
@@ -363,8 +363,8 @@ describe('The module', () => {
                     expect(inqValue.pass.join()).toEqual([
                         'Mercury',
                         'Mars',
-                        'passed',
-                        'Hello'
+                        'Hello',
+                        'passed'
                     ]);
                     done();
                 }
@@ -388,8 +388,8 @@ describe('The module', () => {
                     expect(passes.join()).toEqual([
                         'Mercury',
                         'Mars',
-                        'passed',
-                        'x'
+                        'x',
+                        'passed'
                     ]);
                     return Future.of(passes.join()).fork(
                         (_: any) => expect(true).toBe(false), // shouldn't happen!
@@ -397,11 +397,80 @@ describe('The module', () => {
                             expect(results).toEqual([
                                 'Mercury',
                                 'Mars',
-                                'passed',
-                                'x'
+                                'x',
+                                'passed'
                             ]);
                             done();
                         }
+                    );
+                }
+            );
+    });
+
+    it('can handle Questionsets and do inquireAll with rejections', (done: Function) => {
+        const questionSet = Questionset.of([
+            [
+                'does it start with a capital letter?',
+                (a: string): PassFailMonad =>
+                    /^[A-Z]/.test(a)
+                        ? Pass('starts with a capital')
+                        : Fail('does not start with a capital')
+            ],
+            [
+                'are there more than ten words?',
+                (a: string): PassFailMonad =>
+                    a.split(' ').length > 10
+                        ? Pass('more than ten words')
+                        : Fail('ten words or less')
+            ],
+            [
+                'pause for a moment with fail',
+                // @ts-ignore
+                (a: string): any => Future.after(70, Fail('failed 70ms'))
+            ],
+            [
+                'pause for a moment with pass',
+                (a: string): any =>
+                    // @ts-ignore
+                    Future.after(100, Pass('passed 100ms'))
+            ],
+            [
+                /^are there any line breaks\?$/,
+                (a: string) =>
+                    /\r|\n/.exec(a)
+                        ? Pass('there were line breaks')
+                        : Fail('no line breaks')
+            ]
+        ]);
+
+        return InquiryF.subject('A short sentence.')
+            .using(questionSet)
+            .informant(console.warn)
+            .inquireAll()
+            .conclude(
+                (fail: FailMonad) => {
+                    expect(fail.join()).toEqual([
+                        'ten words or less',
+                        'no line breaks',
+                        'failed 70ms'
+                    ]);
+                },
+                (pass: PassMonad) => {
+                    expect(pass.join()).toEqual([
+                        'starts with a capital',
+                        'passed 100ms'
+                    ]);
+                    setTimeout(done, 1);
+                }
+            )
+            .fork(
+                () => expect(true).toBe(false),
+                (result: InquiryValue) => {
+                    expect(result.receipt.join()[0][0]).toEqual(
+                        'does it start with a capital letter?'
+                    );
+                    expect(result.receipt.join()[0][1].inspect()).toEqual(
+                        'Pass(starts with a capital)'
                     );
                 }
             );
