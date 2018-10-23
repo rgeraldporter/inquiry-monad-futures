@@ -122,7 +122,8 @@ const InquiryF = (x: InquiryValue): InquiryMonad => ({
                 : warnNotPassFail([inquireResponse, fnName]);
 
         const inquireIOU =
-            inquireResponse instanceof Future
+            // @ts-ignore
+            Future.isFuture(inquireResponse)
                 ? Question.of([fnName as string, () => inquireResponse])
                 : false;
 
@@ -178,7 +179,8 @@ const InquiryF = (x: InquiryValue): InquiryMonad => ({
                         ? response.answer(inq.join(), fnName, InquiryF)
                         : Pass(response).answer(x, fnName, InquiryF); // @todo this should be warNotPassFail
 
-                return inquireResponse instanceof Future
+                // @ts-ignore
+                return Future.isFuture(inquireResponse)
                     ? InquiryF({
                           subject: inq.join().subject,
                           fail: inq.join().fail,

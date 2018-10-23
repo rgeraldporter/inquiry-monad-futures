@@ -45,7 +45,9 @@ const resolveAfter1SecondF = (x: any) => Future.after(1000, Pass('passed'));
 // @ts-ignore
 const resolveAfter10msFPass = (x: any) => Future.after(10, Pass('passed'));
 
-const encasePromise = (x: any) => Promise.resolve(Pass('x'));
+const encasePromise = (x: any) => new Promise((resolve) => {
+    setTimeout(() => resolve(Pass('x')), 200);
+});
 const encaseRejectedPromise = (x: any) => Promise.resolve(Fail('x'));
 
 // @ts-ignore
@@ -388,8 +390,8 @@ describe('The module', () => {
                     expect(passes.join()).toEqual([
                         'Mercury',
                         'Mars',
-                        'x',
-                        'passed'
+                        'passed',
+                        'x'
                     ]);
                     return Future.of(passes.join()).fork(
                         (_: any) => expect(true).toBe(false), // shouldn't happen!
@@ -397,8 +399,8 @@ describe('The module', () => {
                             expect(results).toEqual([
                                 'Mercury',
                                 'Mars',
-                                'x',
-                                'passed'
+                                'passed',
+                                'x'
                             ]);
                             done();
                         }
@@ -435,6 +437,11 @@ describe('The module', () => {
                     Future.after(100, Pass('passed 100ms'))
             ],
             [
+                'deal with encased promise',
+                (a: string): any =>
+                    resolveEncaseFork(a)
+            ],
+            [
                 /^are there any line breaks\?$/,
                 (a: string) =>
                     /\r|\n/.exec(a)
@@ -458,7 +465,8 @@ describe('The module', () => {
                 (pass: PassMonad) => {
                     expect(pass.join()).toEqual([
                         'starts with a capital',
-                        'passed 100ms'
+                        'passed 100ms',
+                        'x'
                     ]);
                     setTimeout(done, 1);
                 }
@@ -472,6 +480,139 @@ describe('The module', () => {
                     expect(result.receipt.join()[0][1].inspect()).toEqual(
                         'Pass(starts with a capital)'
                     );
+                }
+            );
+    });
+
+    it('can handle Questionsets and do inquireAll with rejections and when picked out by string', (done: Function) => {
+        const questionSet = Questionset.of([
+            [
+                'does it start with a capital letter?',
+                (a: string): PassFailMonad =>
+                    /^[A-Z]/.test(a)
+                        ? Pass('starts with a capital')
+                        : Fail('does not start with a capital')
+            ],
+            [
+                'are there more than ten words?',
+                (a: string): PassFailMonad =>
+                    a.split(' ').length > 10
+                        ? Pass('more than ten words')
+                        : Fail('ten words or less')
+            ],
+            [
+                'pause for a moment with fail',
+                // @ts-ignore
+                (a: string): any => Future.after(70, Fail('failed 70ms'))
+            ],
+            [
+                'pause for a moment with pass',
+                (a: string): any =>
+                    // @ts-ignore
+                    Future.after(100, Pass('passed 100ms'))
+            ],
+            [
+                'deal with encased promise',
+                (a: string): any =>
+                    resolveEncaseFork(a)
+            ],
+            [
+                /^are there any line breaks\?$/,
+                (a: string) =>
+                    /\r|\n/.exec(a)
+                        ? Pass('there were line breaks')
+                        : Fail('no line breaks')
+            ]
+        ]);
+
+        return InquiryF.subject('A short sentence.')
+            .using(questionSet)
+            .informant(console.warn)
+            .inquire('are there any line breaks?')
+            .inquire('deal with encased promise')
+            .inquire('pause for a moment with pass')
+            .conclude(
+                (fail: FailMonad) => {
+                    expect(fail.join()).toEqual([
+                        'no line breaks'
+                    ]);
+                },
+                (pass: PassMonad) => {
+                    expect(pass.join()).toEqual([
+                        'passed 100ms',
+                        'x'
+                    ]);
+                    setTimeout(done, 1);
+                }
+            )
+            .fork(
+                () => expect(true).toBe(false),
+                (result: InquiryValue) => {
+                    expect(result.receipt.join()[0][0]).toEqual(
+                        'are there any line breaks?'
+                    );
+                }
+            );
+    });
+
+    it('can handle Questionsets and do inquireAll with rejections and when picked out by string', (done: Function) => {
+        const questionSet = Questionset.of([
+            [
+                'does it start with a capital letter?',
+                (a: string): PassFailMonad =>
+                    /^[A-Z]/.test(a)
+                        ? Pass('starts with a capital')
+                        : Fail('does not start with a capital')
+            ],
+            [
+                'are there more than ten words?',
+                (a: string): PassFailMonad =>
+                    a.split(' ').length > 10
+                        ? Pass('more than ten words')
+                        : Fail('ten words or less')
+            ],
+            [
+                'pause for a moment with fail',
+                // @ts-ignore
+                (a: string): any => Future.after(70, Fail('failed 70ms'))
+            ],
+            [
+                'pause for a moment with pass',
+                (a: string): any =>
+                    // @ts-ignore
+                    Future.after(100, Pass('passed 100ms'))
+            ],
+            [
+                'deal with encased promise',
+                (a: string): any =>
+                    resolveEncaseFork(a)
+            ],
+            [
+                /^are there any line breaks\?$/,
+                (a: string) =>
+                    /\r|\n/.exec(a)
+                        ? Pass('there were line breaks')
+                        : Fail('no line breaks')
+            ]
+        ]);
+
+        return InquiryF.subject('A short sentence.')
+            .using(questionSet)
+            .informant(console.warn)
+            .inquire('does it start with a capital letter?')
+            .inquire('deal with encased promise')
+            .inquire('pause for a moment with pass')
+            .fork(
+                (fail: FailMonad) => {
+                    expect(true).toEqual(false); // should not reach here
+                },
+                (pass: PassMonad) => {
+                    expect(pass.join()).toEqual([
+                        'starts with a capital',
+                        'passed 100ms',
+                        'x'
+                    ]);
+                    setTimeout(done, 1);
                 }
             );
     });
